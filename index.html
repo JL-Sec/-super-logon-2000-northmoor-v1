@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Northmoor Research CCTV Portal</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: #020609;
+      --panel: rgba(5, 18, 24, 0.94);
+      --green: #00ff9c;
+      --green-dim: #67ffd0;
+      --red: #ff3864;
+      --blue: #00b7ff;
+      --text: #d8fff1;
+      --muted: #7aa99a;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at center, #0b252b 0%, #020609 62%, #000 100%);
+      color: var(--text);
+      font-family: Consolas, Monaco, monospace;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,156,.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,156,.06) 1px, transparent 1px);
+      background-size: 42px 42px;
+      pointer-events: none;
+      animation: gridMove 10s linear infinite;
+      z-index: 0;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,.025),
+        rgba(255,255,255,.025) 1px,
+        transparent 1px,
+        transparent 5px
+      );
+      pointer-events: none;
+      mix-blend-mode: screen;
+      z-index: 3;
+    }
+
+    @keyframes gridMove {
+      from { transform: translateY(0); }
+      to { transform: translateY(42px); }
+    }
+
+    .screen {
+      min-height: 100vh;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .screen.active { display: flex; }
+
+    .panel {
+      width: min(94vw, 620px);
+      padding: clamp(22px, 5vw, 40px);
+      border: 2px solid var(--green);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 0 32px rgba(0,255,156,.28), inset 0 0 24px rgba(0,255,156,.06);
+      text-align: center;
+    }
+
+    h1, h2 {
+      margin: 0 0 12px;
+      color: var(--green);
+      text-shadow: 0 0 12px rgba(0,255,156,.8);
+      letter-spacing: 3px;
+    }
+
+    h1 { font-size: clamp(30px, 8vw, 54px); }
+    h2 { font-size: clamp(22px, 5vw, 34px); }
+
+    .subtitle {
+      color: var(--green-dim);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      text-align: left;
+      margin: 15px 0 6px;
+      color: var(--green-dim);
+      font-size: 14px;
+      letter-spacing: 1px;
+    }
+
+    input {
+      width: 100%;
+      padding: 15px;
+      border: 1px solid rgba(0,255,156,.5);
+      border-radius: 10px;
+      background: rgba(0,0,0,.35);
+      color: #fff;
+      font: inherit;
+      outline: none;
+    }
+
+    input:focus {
+      border-color: var(--green);
+      box-shadow: 0 0 12px rgba(0,255,156,.3);
+    }
+
+    button {
+      width: 100%;
+      margin-top: 22px;
+      padding: 16px 18px;
+      border: 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, var(--green), var(--blue));
+      color: #001014;
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      touch-action: manipulation;
+      box-shadow: 0 0 24px rgba(0,255,156,.4);
+    }
+
+    button:active { transform: scale(.98); }
+
+    .ghost-button {
+      background: transparent;
+      border: 1px solid rgba(0,255,156,.5);
+      color: var(--green);
+      box-shadow: none;
+    }
+
+    .message {
+      min-height: 26px;
+      margin-top: 16px;
+      color: var(--red);
+      text-shadow: 0 0 8px rgba(255,56,100,.7);
+      line-height: 1.4;
+    }
+
+    .success { color: var(--green); }
+
+    .hint-box {
+      margin-top: 18px;
+      padding: 14px;
+      border: 1px dashed rgba(0,255,156,.35);
+      border-radius: 12px;
+      text-align: left;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .cctv-screen {
+      display: none;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+      padding: 12px;
+    }
+
+    .cctv-screen.active { display: block; }
+
+    .topbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid rgba(0,255,156,.35);
+      background: rgba(0,0,0,.45);
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .topbar strong {
+      color: var(--green);
+      letter-spacing: 2px;
+      font-size: 14px;
+    }
+
+    .status {
+      color: var(--red);
+      font-size: 12px;
+      animation: blink 1s infinite alternate;
+    }
+
+    @keyframes blink { from { opacity: .45; } to { opacity: 1; } }
+
+    .camera-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    @media (min-width: 860px) {
+      .camera-layout { grid-template-columns: 1.5fr .8fr; }
+    }
+
+    .main-feed, .side-panel {
+      border: 1px solid rgba(0,255,156,.35);
+      border-radius: 16px;
+      background: rgba(0,0,0,.42);
+      overflow: hidden;
+    }
+
+    .feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(0,255,156,.25);
+      color: var(--green-dim);
+      font-size: 13px;
+    }
+
+    .camera-window {
+      position: relative;
+      height: min(72vh, 620px);
+      min-height: 390px;
+      overflow: hidden;
+      background: #000;
+      touch-action: none;
+      user-select: none;
+    }
+
+    #cctvImage {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: translate(-50%, -50%) scale(1);
+      transform-origin: center center;
+      will-change: transform;
+      filter: none;
+      -webkit-user-drag: none;
+      user-select: none;
+      pointer-events: none;
+      background: black;
+    }
+
+    .feed-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background:
+        linear-gradient(rgba(0,255,156,.04), transparent 38%),
+        repeating-linear-gradient(to bottom, rgba(255,255,255,.035), rgba(255,255,255,.035) 1px, transparent 1px, transparent 4px);
+      mix-blend-mode: screen;
+    }
+
+    .timestamp {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      color: #d9fff1;
+      background: rgba(0,0,0,.5);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    .rec {
+      position: absolute;
+      right: 12px;
+      top: 12px;
+      color: var(--red);
+      background: rgba(0,0,0,.5);
+      padding: 6px 8px;
+      border-radius: 8px;
+      font-size: 12px;
+      pointer-events: none;
+    }
+
+    .zoom-controls {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      padding: 10px;
+      background: rgba(0,0,0,.5);
+      border-top: 1px solid rgba(0,255,156,.25);
+    }
+
+    .zoom-controls button {
+      margin: 0;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .thumbs {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+    }
+
+    .thumb {
+      border: 1px solid rgba(0,255,156,.25);
+      border-radius: 12px;
+      padding: 10px;
+      color: var(--green-dim);
+      background: rgba(0,0,0,.22);
+      cursor: pointer;
+    }
+
+    .thumb.active {
+      border-color: var(--green);
+      box-shadow: 0 0 14px rgba(0,255,156,.25);
+    }
+
+    .thumb small {
+      display: block;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .code-panel {
+      padding: 12px;
+      border-top: 1px solid rgba(0,255,156,.25);
+    }
+
+    .code-panel button {
+      margin-top: 0;
+    }
+
+    .notes {
+      padding: 12px;
+      border-top: 1px solid rgba(0,255,156,.25);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+  </style>
+</head>
+<body>
+  <!--
+    NORTHMOOR RESEARCH CCTV PORTAL
+
+    QUICK MAINTENANCE NOTE:
+    Legacy admin route: #admin
+
+    Admin build: super-logon-2000-northmoor-v1
+    Note to lazy developer: You did remember to remove the creds from the repo, right? Right??
+  -->
+
+  <section id="loginScreen" class="screen active">
+    <div class="panel">
+      <h1>NORTHMOOR RESEARCH</h1>
+      <div class="subtitle">Emergency reactor monitoring portal</div>
+
+      <label for="memberId">Operator ID</label>
+      <input id="memberId" autocomplete="off" placeholder="NR-0000" />
+
+      <label for="memberPin">Access PIN</label>
+      <input id="memberPin" type="password" placeholder="••••••" />
+
+      <button onclick="fakeLogin()">LOGIN</button>
+      <div id="loginMessage" class="message"></div>
+
+      <div class="hint-box">
+        INCIDENT BRIEFING:<br><br>
+
+  You have been contacted by staff at the abandoned Northmoor Research Facility after their internal systems became infected during a containment failure.
+
+  <br><br>
+  
+  External access to the reactor control systems has been locked out, however an old legacy CCTV and maintenance network still appears to be online.
+  <br><br>
+  Your objective is to gain access to the legacy system, locate the reactor shutdown code, and prevent a catastrophic failure before the core becomes unstable.
+  <br><br>
+  
+  Time remaining is unknown.
+
+      </div>
+    </div>
+  </section>
+
+  <section id="adminScreen" class="screen">
+    <div class="panel">
+      <h2>SUPER LOGON 2000</h2>
+      <div class="subtitle">Northmoor v1 emergency console</div>
+
+      <label for="adminUser">Username</label>
+      <input id="adminUser" autocomplete="off" placeholder="admin" />
+
+      <div style="margin-bottom:12px; color:#ff8080; font-size:13px; line-height:1.4; border:1px solid rgba(255,0,0,.3); padding:10px; border-radius:10px;">
+        WARNING: Legacy system allows only 2 failed authentication attempts before automatic 5 minute lockout.<br>
+        Forced refreshes trigger an additional 2 minute delay penalty.
+      </div>
+
+      <label for="adminPass">Password</label>
+      <input id="adminPass" type="password" placeholder="password" />
+
+      <button onclick="adminLogin()">AUTHENTICATE</button>
+      <button class="ghost-button" onclick="goHome()">BACK</button>
+      <div id="adminMessage" class="message"></div>
+
+      <div class="hint-box">
+        Version:
+        <a href="https://github.com/YOUR-USERNAME/YOUR-REPO" target="_blank" rel="noopener" style="color: var(--green); text-decoration: underline;">
+          <strong>super-logon-2000-northmoor-v1</strong>
+        </a><br />
+      </div>
+    </div>
+  </section>
+
+  <main id="cctvScreen" class="cctv-screen">
+    <div class="topbar">
+      <strong>NR-CCTV // EMERGENCY ADMIN SESSION</strong>
+      <span class="status">● REC LIVE</span>
+    </div>
+
+    <div class="camera-layout">
+      <section class="main-feed">
+        <div class="feed-header">
+          <span id="cameraTitle">CAM 01 — REACTOR ROOM</span>
+          <span id="zoomReadout">ZOOM 1.0x</span>
+        </div>
+
+        <div id="cameraWindow" class="camera-window">
+          <video
+            id="cctvImage"
+            src="assets/reactor-room.mp4"
+            autoplay
+            muted
+            loop
+            playsinline
+          ></video>
+          <div class="feed-overlay"></div>
+          <div class="timestamp" id="timestamp">2026-05-27 21:14:03</div>
+          <div class="rec">● REC</div>
+        </div>
+
+        <div class="zoom-controls">
+          <button onclick="zoomBy(0.35)">ZOOM +</button>
+          <button onclick="zoomBy(-0.35)">ZOOM -</button>
+          <button onclick="resetZoom()">RESET</button>
+        </div>
+      </section>
+
+      <aside class="side-panel">
+        <div class="feed-header">CAMERA INDEX</div>
+        <div class="thumbs">
+          <div class="thumb active" onclick="selectCamera(this, 'CAM 01 — REACTOR ROOM')">CAM 01 <small>Reactor status unstable</small></div>
+          <div class="thumb" onclick="selectCamera(this, 'CAM 02 — HALLWAY')">CAM 02 <small>Motion detected</small></div>
+          <div class="thumb" onclick="selectCamera(this, 'CAM 03 — SHUTDOWN CONSOLE')">CAM 03 <small>Auth code required</small></div>
+          <div class="thumb" onclick="selectCamera(this, 'CAM 04 — STORAGE BAY')">CAM 04 <small>Manual inspection advised</small></div>
+          <div class="thumb" onclick="selectCamera(this, 'CAM 05 — CONTROL ROOM')">CAM 05 <small>Signal unstable</small></div>
+        </div>
+
+        <div class="code-panel">
+          <input id="accessCodeInput" placeholder="ENTER SHUTDOWN ACCESS CODE" />
+          <button onclick="submitAccessCode()">SUBMIT CODE</button>
+          <div id="accessCodeMessage" class="message"></div>
+        </div>
+
+        <div class="notes">
+          Pinch to zoom on mobile. Drag the feed while zoomed in. Double-tap the feed to reset.
+          <br /><br />
+          Operator note: check small labels, wall signs, reflections, and storage shelves.
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script>
+    const d=(a,s)=>a.map(n=>String.fromCharCode(n+s)).join('');
+    const r1=[103,120,104,118,119];
+    const r2=[115,100,118,118,122,114,117,103,52,53,54];
+    const r3=[56,54,49,58,49,58,60,60,55,53,47,35,48,52,49,56,55,57,60,55,55];
+    const r4=[50,57,55,55,50,48];
+    const r5=[54,51,55,51,55,54];
+    const r6=[60,58,53,66,66,66,66,66,66,56,51,39,56,53,55,55,55,55,55,55];
+    const r7='YWRtaW46cGFzc3dvcmQxMjM=';
+    const r8='bGVnYWN5LXJvb3Q6Ym9hdGNsdWI=';
+    const r9=[60,58,53,63,55,58,59,57,56,51,39,52,56,53,60,62,57,56,56,59];
+    const r10=[60,58,53,63,55,61,64,56,63,51,39,52,56,53,60,58,58,63,55,56];
+    const r11=[60,58,53,62,63,64,59,59,56,51,39,52,56,53,60,61,58,57,55,64];
+    const r12=[60,58,53,63,56,57,62,62,55,51,39,52,56,53,60,59,63,57,57,56];
+    const r13=[60,58,53,62,63,61,60,60,58,51,39,52,56,53,60,57,56,62,62,59];
+    const r14=[60,58,53,63,55,56,63,63,59,51,39,52,56,53,60,63,64,55,55,57];
+    const r15='c3VwZXJ2aXNvcjpyZWFjdG9y';
+    const r16='cm9vdDphZG1pbg==';
+    const r17='b3BlcmF0b3I6bGV0bWVpbg==';
+    const r18='YWNjZXNzLWNvZGU6MTIzNDU2';
+    const r19='ZmluYWw6NTMuNzk0MTY3LCAtMS41NDY5NDQ=';
+    const r20='ZmluYWxfY29vcmRzOjUzLjgwMDAwMSwtMS41NDAwMDE=';
+    const r21=[58,61,53,60,62,64,55,55,55,56,51,39,56,58,53,58,57,57,57,57,57];
+    const r22=[61,58,53,62,64,65,65,61,61,56,51,39,56,58,53,58,58,56,64,56,55];
+    const r23=[60,58,53,62,64,65,65,61,61,56,51,39,56,58,53,58,58,56,64,56,54];
+    const r24=[57,58,55,64,64,64];
+    const r25=[58,56,57,58,56,57];
+    const r26='northmoor-admin-old';
+    const r27='reactor-cooling-mode';
+    const r28='shutdown-override-000';
+    const r29='CAM03-AUTH: 111111';
+    const r30='CAM05-AUTH: 654321';
+    const r31='DO-NOT-USE: 098178';
+    const r32='ARCHIVE-PASS: password123';
+    const z0=()=>atob(r7);
+    const z1=()=>atob(r8);
+    const z2=()=>d(r1,-3);
+    const z3=()=>d(r2,-3);
+    const z4=()=>d(r3,-5);
+    const z5=()=>d(r4,-2);
+    const z6=()=>d(r5,-4);
+    const z7=()=>d(r9,-7).split('').reverse().join('');
+    const z8=()=>['alpha','bravo','charlie'].join('-');
+    const z9=()=>String.fromCharCode(112,97,115,115,119,111,114,100);
+    const z10=()=>atob(r15);
+    const z11=()=>atob(r16);
+    const z12=()=>atob(r17);
+    const z13=()=>atob(r18);
+    const z14=()=>atob(r19);
+    const z15=()=>atob(r20);
+    const z16=()=>d(r21,-6);
+    const z17=()=>d(r22,-8);
+    const z18=()=>d(r23,-7);
+    const z19=()=>d(r24,-1);
+    const z20=()=>d(r25,-2);
+    const z21=()=>`${r26}:${r27}`;
+    const z22=()=>r28.toUpperCase();
+    const z23=()=>r29.replace('111111','000000');
+    const z24=()=>r30.replace('654321','123456');
+    const z25=()=>r31.split(': ')[1];
+    const z26=()=>r32.split(': ')[1];
+    const fa1=[117,114,114,119];
+    const fa2=[118,120,115,104,117,121,108,118,114,117];
+    const fa3=[114,115,104,117,100,119,114,117];
+    const fa4=[117,104,100,102,119,114,117,48,100,103,112,108,113];
+    const fa5=[118,100,105,104,119,124,48,113,114,103,104];
+    const fa6=[119,104,118,119,48,100,102,102];
+    const fa7=[117,104,100,102,119,114,117,48,117,114,114,119];
+    const fa8=[119,104,112,115,48,100,103,112,108,113];
+    const fa9=[100,117,102,107,108,121,104,48,111,114,106];
+    const fa10=[114,111,103,48,100,103,112,108,113];
+    const fa11=[113,114,117,119,107,112,114,114,117];
+    const fa12=[117,104,100,102,119,114,117,48,112,100,108,113];
+    const fa13=[118,104,102,120,117,104,48,113,114,103,104];
+    const fa14=[104,112,104,117,106,104,113,102,124];
+    const fa15=[101,100,102,110,120,115,48,117,114,114,119];
+    const fa16=[104,121,100,102,48,113,114,103,104];
+    const fa17=[117,104,100,102,119,114,117,48,111,100,101];
+    const fa18=[118,107,120,119,103,114,122,113];
+    const fa19=[117,104,103,48,119,104,100,112];
+    const fa20=[117,104,100,102,119,114,117,48,115,117,108,112,104];
+    const fz1=()=>d(fa1,-3);
+    const fz2=()=>d(fa2,-3);
+    const fz3=()=>d(fa3,-3);
+    const fz4=()=>d(fa4,-3);
+    const fz5=()=>d(fa5,-3);
+    const fz6=()=>d(fa6,-3);
+    const fz7=()=>d(fa7,-3);
+    const fz8=()=>d(fa8,-3);
+    const fz9=()=>d(fa9,-3);
+    const fz10=()=>d(fa10,-3);
+    const fz11=()=>d(fa11,-3);
+    const fz12=()=>d(fa12,-3);
+    const fz13=()=>d(fa13,-3);
+    const fz14=()=>d(fa14,-3);
+    const fz15=()=>d(fa15,-3);
+    const fz16=()=>d(fa16,-3);
+    const fz17=()=>d(fa17,-3);
+    const fz18=()=>d(fa18,-3);
+    const fz19=()=>d(fa19,-3);
+    const fz20=()=>d(fa20,-3);
+
+    const a=[100,103,112,108,113];
+    const b=[117,104,100,102,119,114,117,48,106,114,48,101,114,114,112];
+    const c=[57,64,65,58,64,64];
+    const f=[60,58,53,62,64,65,65,61,61,56,51,39,56,58,53,58,58,56,64,56,55];
+
+    const g=()=>d(a,-3);
+    const h=()=>d(b,-3);
+    const i=()=>d(c,-9);
+    const j=()=>d(f,-7);
+
+    const k={
+      'CAM 01 — REACTOR ROOM':'assets/reactor-room.mp4',
+      'CAM 02 — HALLWAY':'assets/hallway.mp4',
+      'CAM 03 — SHUTDOWN CONSOLE':'assets/shutdown-console.mp4',
+      'CAM 04 — STORAGE BAY':'assets/storage-bay.mp4',
+      'CAM 05 — CONTROL ROOM':'assets/control-room.mp4'
+    };
+
+    const l=6;
+    const m=1;
+    const n=document.getElementById('cctvImage');
+    const o=document.getElementById('cameraWindow');
+    const p=document.getElementById('zoomReadout');
+
+    let q=1,r=0,s=0,t=false,u=0,v=0,w=0,x=null,y=1;
+
+    let aa=Number(localStorage.getItem('nr_fail_count')||0);
+    let ab=Number(localStorage.getItem('nr_lock_until')||0);
+    const ad=2;
+    const ae=300000;
+    const af=120000;
+
+    const ar=sessionStorage.getItem('nr_session_live');
+    if(ar==='1'){
+      const old=Number(localStorage.getItem('nr_lock_until')||0);
+      if(old>Date.now()){
+        ab=old+af;
+        localStorage.setItem('nr_lock_until',String(ab));
+      }
+    }
+    sessionStorage.setItem('nr_session_live','1');
+
+    function fakeLogin(){
+      document.getElementById('loginMessage').textContent='PRIMARY OPERATOR PORTAL OFFLINE — legacy admin emergency route required';
+    }
+
+    function ag(){
+      return Math.max(0,Math.ceil((ab-Date.now())/1000));
+    }
+
+    function ah(){
+      const e=ag();
+      const A=document.getElementById('adminMessage');
+      A.textContent=`SYSTEM LOCKED — TRY AGAIN IN ${e} SECONDS`;
+      A.classList.remove('success');
+    }
+
+    function adminLogin(){
+      const e=document.getElementById('adminUser').value.trim();
+      const A=document.getElementById('adminPass').value.trim();
+      const B=document.getElementById('adminMessage');
+
+      if(Date.now()<ab){
+        ah();
+        return;
+      }
+
+      if(e===g()&&A===h()){
+        aa=0;
+        ab=0;
+        localStorage.setItem('nr_fail_count','0');
+        localStorage.setItem('nr_lock_until','0');
+        B.textContent='ACCESS GRANTED';
+        B.classList.add('success');
+        setTimeout(C,450);
+      }else{
+        aa++;
+        localStorage.setItem('nr_fail_count',String(aa));
+
+        if(aa>=ad){
+          ab=Date.now()+ae;
+          localStorage.setItem('nr_lock_until',String(ab));
+          ah();
+          return;
+        }
+
+        B.textContent=`ACCESS DENIED — ${ad-aa} ATTEMPT REMAINING BEFORE LOCKOUT`;
+        B.classList.remove('success');
+      }
+    }
+
+    function submitAccessCode(){
+      const e=document.getElementById('accessCodeInput').value.trim();
+      const A=document.getElementById('accessCodeMessage');
+      if(e===i()){
+        A.innerHTML=`ACCESS GRANTED<br><br>FINAL COORDINATES: <strong>${j()}</strong>`;
+        A.classList.add('success');
+      }else{
+        A.textContent='INVALID SHUTDOWN CODE';
+        A.classList.remove('success');
+      }
+    }
+
+    function B(e){
+      document.querySelectorAll('.screen').forEach(A=>A.classList.remove('active'));
+      document.getElementById('cctvScreen').classList.remove('active');
+      document.getElementById(e).classList.add('active');
+    }
+
+    function C(){
+      document.querySelectorAll('.screen').forEach(e=>e.classList.remove('active'));
+      document.getElementById('cctvScreen').classList.add('active');
+      J();
+      n.play().catch(()=>{});
+    }
+
+    function goHome(){
+      location.hash='';
+      B('loginScreen');
+    }
+
+    function D(){
+      if(location.hash.toLowerCase()==='#admin')B('adminScreen');
+      else B('loginScreen');
+    }
+
+    window.addEventListener('hashchange',D);
+    window.addEventListener('load',D);
+
+    function E(){
+      n.style.transform=`translate(calc(-50% + ${r}px), calc(-50% + ${s}px)) scale(${q})`;
+      p.textContent=`ZOOM ${q.toFixed(1)}x`;
+    }
+
+    function F(){
+      const e=o.getBoundingClientRect();
+      const A=((q-1)*e.width)/2;
+      const B=((q-1)*e.height)/2;
+      r=Math.max(-A,Math.min(A,r));
+      s=Math.max(-B,Math.min(B,s));
+    }
+
+    function zoomBy(e){
+      q=Math.max(m,Math.min(l,q+e));
+      if(q===m){r=0;s=0;}
+      F();
+      E();
+    }
+
+    function J(){
+      q=1;r=0;s=0;E();
+    }
+
+    function resetZoom(){J();}
+
+    function K(e){
+      const A=e[0].clientX-e[1].clientX;
+      const B=e[0].clientY-e[1].clientY;
+      return Math.sqrt(A*A+B*B);
+    }
+
+    o.addEventListener('mousedown',e=>{
+      t=true;u=e.clientX;v=e.clientY;
+    });
+
+    window.addEventListener('mousemove',e=>{
+      if(!t||q<=1)return;
+      r+=e.clientX-u;
+      s+=e.clientY-v;
+      u=e.clientX;
+      v=e.clientY;
+      F();E();
+    });
+
+    window.addEventListener('mouseup',()=>{t=false;});
+
+    o.addEventListener('wheel',e=>{
+      e.preventDefault();
+      zoomBy(e.deltaY<0?.25:-.25);
+    },{passive:false});
+
+    o.addEventListener('touchstart',e=>{
+      if(e.touches.length===1){
+        const A=Date.now();
+        if(A-w<300)J();
+        w=A;
+        t=true;
+        u=e.touches[0].clientX;
+        v=e.touches[0].clientY;
+      }
+      if(e.touches.length===2){
+        x=K(e.touches);
+        y=q;
+        t=false;
+      }
+    },{passive:false});
+
+    o.addEventListener('touchmove',e=>{
+      e.preventDefault();
+      if(e.touches.length===1&&t&&q>1){
+        r+=e.touches[0].clientX-u;
+        s+=e.touches[0].clientY-v;
+        u=e.touches[0].clientX;
+        v=e.touches[0].clientY;
+        F();E();
+      }
+      if(e.touches.length===2&&x){
+        const A=K(e.touches);
+        q=Math.max(m,Math.min(l,y*(A/x)));
+        if(q===m){r=0;s=0;}
+        F();E();
+      }
+    },{passive:false});
+
+    o.addEventListener('touchend',()=>{
+      t=false;
+      x=null;
+    });
+
+    function selectCamera(e,A){
+      document.querySelectorAll('.thumb').forEach(B=>B.classList.remove('active'));
+      e.classList.add('active');
+      document.getElementById('cameraTitle').textContent=A;
+      if(k[A]){
+        n.src=k[A];
+        n.load();
+        n.play().catch(()=>console.log('Video autoplay blocked until user interaction.'));
+      }
+      J();
+    }
+
+    setInterval(()=>{
+      const e=new Date();
+      document.getElementById('timestamp').textContent=e.toISOString().replace('T',' ').slice(0,19);
+    },1000);
+  </script>
+</body>
+</html>
